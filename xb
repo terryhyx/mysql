@@ -1,0 +1,50 @@
+
+expdp itmuser/passw0rd123@ware622
+schemas=itmuser tables=Disk,KLZ_Disk,NT_Logical_Disk,Oracle_Tablespaces_64,Linux_IP_Address,NT_IP_Address,UNIX_IP_Address dumpfile=`date -d yesterday +"%Y%m%d"`.dmp
+logfile=daydmp.log directory=EXP_DIR
+query=Disk:'"where substr(timestamp,2,6)=`date -d yesterday +"%y%m%d"`"',
+KLZ_Disk:'"where substr(timestamp,2,6)=`date -d yesterday +"%y%m%d"`"',
+NT_Logical_Disk:'"where substr(timestamp,2,6)=`date -d yesterday +"%y%m%d"`"',
+Linux_IP_Address:'"where substr(timestamp,2,6)=`date -d yesterday +"%y%m%d"`"',
+NT_IP_Address:'"where substr(timestamp,2,6)=`date -d yesterday +"%y%m%d"`"',
+UNIX_IP_Address:'"where substr(timestamp,2,6)=`date -d yesterday +"%y%m%d"`"',
+Oracle_Tablespaces_64:'"where substr(Hub_Timestamp,2,6)=`date -d yesterday +"%y%m%d"`"'
+content=data_only
+
+expdp itmuser/passw0rd123@ware622 dumpfile=full.dmp schemas=itmuser logfile=full.log directory=EXP_DIR
+
+expdp itmuser/password directory=EXP_DIR dumpfile=tbs2.dmp tables=itmuser.\"Oracle_Tablespaces_64\" \
+query=itmuser.\"Oracle_Tablespaces_64\":\"where substr\("Hub_Timestamp",2,6\)\= to_char\(sysdate -1,'YYMMDD'\)\"
+
+select 'to_char(sysdate -1,'||chr(39)||'YYMMDD'||chr(39)||')' from dual;
+
+select count(*) from "Oracle_Tablespaces_64" where substr("Hub_Timestamp",2,6)=to_char(sysdate-1,'YYMMDD')
+
+create table Oracle_Tablespaces_64_tmp as select * from "Oracle_Tablespaces_64";
+create index itmuser.idx_tbs_01 on "Oracle_Tablespaces_64"(substr("Hub_Timestamp",2,6));
+insert into Oracle_Tablespaces_64_tmp select * from "Oracle_Tablespaces_64" where substr("Hub_Timestamp",2,6)=to_char(sysdate-1,'YYMMDD');
+
+expdp itmuser/password directory=EXP_DIR tables=Oracle_Tablespaces_64_tmp dumpfile=tbs_tmp.dmp
+truncate table Oracle_Tablespaces_64_tmp;
+
+impdp itmuser/password directory=EXP_DIR tables=Oracle_Tablespaces_64_tmp dumpfile=tbs_tmp.dmp TABLE_EXISTS_ACTION=replace
+insert into "Oracle_Tablespaces_64" select * from Oracle_Tablespaces_64_tmp;
+commit;
+truncate table Oracle_Tablespaces_64_tmp;
+
+
+
+declare
+h1 number;
+v_job_state       varchar2(4000);
+begin
+h1 := dbms_datapump.open(operation=>'EXPORT',job_mode=>'TABLE',job_name=>'HARRY10');
+dbms_datapump.add_file(h1,'example1.dmp','EXP_DIR',reusefile=>1);
+dbms_datapump.add_file(h1,'example1.log','EXP_DIR',reusefile=>1,filetype =>   dbms_datapump.ku$_file_type_log_file);
+dbms_datapump.metadata_filter(handle => h1,name => 'NAME_EXPR',value => 'IN (''Oracle_Tablespaces_64'')',object_type => 'TABLE');
+dbms_datapump.data_filter(handle => h1,name => 'SUBQUERY',value => 'WHERE "DataID" = 1');
+dbms_datapump.start_job(h1);
+DBMS_DATAPUMP.WAIT_FOR_JOB (h1,v_job_state);
+DBMS_OUTPUT.PUT_LINE(v_job_state);
+end;
+/
