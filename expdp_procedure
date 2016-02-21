@@ -1,0 +1,39 @@
+/*
+grant create session, create table, create procedure, exp_full_database, imp_full_database to itmuser;
+grant read, write on directory EXP_DIR to itmuser;
+*/
+
+create or replace procedure expdp_data
+is
+  h1          number;
+  v_date      varchar2(200);
+begin
+  select to_char(sysdate-1,'YYYYMMDD-HH24:MI') into v_date from dual;
+  h1 := dbms_datapump.open('EXPORT','TABLE');
+  sys.dbms_datapump.add_file(h1,v_date||'_%U.dmp','EXP_DIR',NULL,DBMS_DATAPUMP.KU$_FILE_TYPE_DUMP_FILE,1);
+  sys.dbms_datapump.add_file(h1,v_date,'EXP_DIR',NULL,DBMS_DATAPUMP.KU$_FILE_TYPE_LOG_FILE);
+  sys.dbms_datapump.metadata_filter(handle => h1,name => 'NAME_EXPR',value => 'IN (''Oracle_Tablespaces_64'',''Oracle_Tablespaces_64_2'')',object_type => 'TABLE');
+  sys.dbms_datapump.data_filter(handle => h1,name => 'SUBQUERY',value => 'WHERE substr("Hub_Timestamp",2,6)=to_char(sysdate-2,''YYMMDD'')',table_name=>'Oracle_Tablespaces_64');
+  sys.dbms_datapump.data_filter(handle => h1,name => 'SUBQUERY',value => 'WHERE substr("Hub_Timestamp",2,6)=to_char(sysdate-3,''YYMMDD'')',table_name=>'Oracle_Tablespaces_64_2');
+  sys.dbms_datapump.set_parameter(h1,'CLIENT_COMMAND','EXP Oracle_Tablespaces_64 data');
+  sys.dbms_datapump.set_parallel(h1,2);
+  sys.dbms_datapump.start_job(h1);
+  sys.dbms_datapump.detach(h1);
+  DBMS_OUTPUT.PUT_LINE(v_date||'''s date has exported');
+end;
+/
+
+
+
+VARIABLE jobno number;
+BEGIN
+   DBMS_JOB.SUBMIT(:jobno,
+      'begin expdp_data;end;',
+      to_date('20160221-12:11','YYYYMMDD-HH24:MI'), 'SYSDATE + 1/240');
+   COMMIT;
+END;
+/
+
+select job,to_char(NEXT_DATE,'YYYYMMDD-HH24:MI:SS'),what from user_jobs;
+
+exec dbms_job.remove(jobno);
