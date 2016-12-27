@@ -1,0 +1,31 @@
+Hadoop On debian
+
+1、 /etc/apt/sources.list增加
+
+  # Debian 7 "Wheezy"
+  deb http://http.debian.net/debian/ wheezy main contrib
+
+2、安装java-package
+  apt-get update && apt-get install java-package
+
+3、到http://www.oracle.com/technetwork/java/javase/downloads/index.html 下载tar.gz的JDK
+
+4、生产deb包
+    make-jpkg可能会报错 No matching plugin was found
+    修改/usr/share/java-package/oracle-j2sdk.sh
+       在check for jdk-7u后面加入：
+       "jdk-8u"[0-9]"-linux-x64.tar.gz") # SUPPORTED
+          j2se_version=1.8.0+update${archive_name:6:1}${revision}
+          j2se_expected_min_size=310 #Mb
+          j2se_priority=319
+          found=true
+          ;;
+      "jdk-8u"[0-9][0-9]"-linux-x64.tar.gz") # SUPPORTED
+          j2se_version=1.8.0+update${archive_name:6:2}${revision}
+          j2se_expected_min_size=310 #Mb
+          j2se_priority=319
+          found=true
+          ;;
+
+5、安装jdk dpkg -i oracle-j2sdk1.7_1.7.0+update45_amd64.deb
+   安装完成后update-alternatives --display java 查看jdk的安装情况

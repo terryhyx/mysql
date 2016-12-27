@@ -1,0 +1,7 @@
+grafana
+
+template
+  variables:
+  show tag values from "oracle_wait_class" with key="host"
+  show tag values from "oracle_wait_class" with key="db"
+  show tag values from "oracle_wait_class" with key="wait_class"
